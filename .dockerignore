@@ -1,0 +1,11 @@
+bin
+*/log/*.log
+*/log/*.log.gz
+orchestratorm8
+*/tmp/*
+*.log
+*.cfg
+*.yml
+*.yaml
+dockerfile
+.dockerignore

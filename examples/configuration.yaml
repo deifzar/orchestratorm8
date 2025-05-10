@@ -1,0 +1,86 @@
+APP_ENV: DEV # DEV,TEST,PROD (DEV and TEST print logs in CMD screen)
+LOG_LEVEL: "0"
+ORCHESTRATORM8:
+  Services:
+    asmm8: "http://127.0.0.1:8000"
+    naabum8: "http://127.0.0.1:8001"
+    katanam8: "http://127.0.0.1:8002"
+    num8: "http://127.0.0.1:8003"
+  Exchanges: # Format below: exchange_name:exchange_type
+    cptm8: "topic"
+    scheduler: "topic"
+    notification: "topic"
+  asmm8: # API service name
+    Queue:
+      - "cptm8" # exchange_name
+      - "qasmm8" # queue_name
+      - "cptm8.asmm8.#" # binding_key
+      - 1 # prefetch count
+    Queue-arguments:
+      "x-max-length": 1 # x-queue-type, x-max-length, x-max-length-bytes, x-overflow, x-message-ttl, x-expires, x-max-age, x-stream-max-segment-size-bytes, x-queue-version, x-consumer-timeout, x-single-active-consumer
+      "x-overflow": "reject-publish"
+    Consumer:
+      - "qasmm8" # queue name
+      - "false" # autoack
+      - "apicall" # handle type: apicall or notification
+  naabum8:
+    Queue:
+      - cptm8
+      - qnaabum8
+      - cptm8.naabum8.#
+      - 1
+    Queue-arguments:
+      "x-max-length": 1
+      "x-overflow": "reject-publish"
+    Consumer:
+      - "qnaabum8"
+      - "false"
+      - "apicall"
+  katanam8:
+    Queue:
+      - cptm8
+      - qkatanam8
+      - cptm8.katanam8.#
+      - 1
+    Queue-arguments:
+      "x-max-length": 1
+      "x-overflow": "reject-publish"
+    Consumer:
+      - "qkatanam8"
+      - "false"
+      - "apicall"
+  num8:
+    Queue:
+      - cptm8
+      - qnum8
+      - cptm8.qnum8.#
+      - 1
+    Queue-arguments:
+      "x-max-length": 1
+      "x-overflow": "reject-publish"
+    Consumer:
+      - "qnum8"
+      - "false"
+      - "apicall"
+  reportingm8:
+    Queue:
+      - scheduler
+      - qreportingm8
+      - scheduler.qreportingm8.#
+    Queue-arguments:
+    Consumer:
+      - "qreportingm8"
+      - "false"
+      - "apicall"
+Database: # PostgreSQL connection details
+  location: "hostname"
+  port: 5432
+  schema: "public"
+  database: "databasename"
+  username: "dbuser"
+  password: "dbpass"
+RabbitMQ: # RabbitMQ connection details
+  location: "hostname"
+  port: 5672
+  username: "user"
+  password: "pass"
