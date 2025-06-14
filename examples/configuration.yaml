@@ -21,8 +21,8 @@ ORCHESTRATORM8:
       "x-overflow": "reject-publish"
     Consumer:
       - "qasmm8" # queue name
+      - "casmm8"  # consumer name
       - "false" # autoack
-      - "apicall" # handle type: apicall or notification
   naabum8:
     Queue:
       - cptm8
@@ -34,8 +34,8 @@ ORCHESTRATORM8:
       "x-overflow": "reject-publish"
     Consumer:
       - "qnaabum8"
+      - "cnaabum8"
       - "false"
-      - "apicall"
   katanam8:
     Queue:
       - cptm8
@@ -47,8 +47,8 @@ ORCHESTRATORM8:
       "x-overflow": "reject-publish"
     Consumer:
       - "qkatanam8"
+      - "ckatanam8"
       - "false"
-      - "apicall"
   num8:
     Queue:
       - cptm8
@@ -60,8 +60,8 @@ ORCHESTRATORM8:
       "x-overflow": "reject-publish"
     Consumer:
       - "qnum8"
+      - "cnum8"
       - "false"
-      - "apicall"
   reportingm8:
     Queue:
       - scheduler
@@ -70,8 +70,8 @@ ORCHESTRATORM8:
     Queue-arguments:
     Consumer:
       - "qreportingm8"
+      - "creportingm8"
       - "false"
-      - "apicall"
 Database: # PostgreSQL connection details
   location: "hostname"
   port: 5432

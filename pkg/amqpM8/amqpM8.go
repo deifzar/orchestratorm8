@@ -237,7 +237,7 @@ func (a *AmqpM8Imp) Publish(exchangeName string, routingKey string, payload any)
 	return err
 }
 
-func (a *AmqpM8Imp) Consume(consumerName, queueName string, handleType string, autoACK bool) error {
+func (a *AmqpM8Imp) Consume(consumerName, queueName string, autoACK bool) error {
 
 	msgs, err := a.ch.Consume(
 		queueName,    // queue
@@ -259,7 +259,7 @@ func (a *AmqpM8Imp) Consume(consumerName, queueName string, handleType string, a
 	go func() {
 		for msg := range msgs {
 			// Process each msg
-			handler := a.handler[handleType]
+			handler := a.handler[queueName]
 			handler(msg)
 			if !autoACK {
 				msg.Ack(false)
