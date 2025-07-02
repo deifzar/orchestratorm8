@@ -6,6 +6,7 @@ import (
 	"deifzar/orchestratorm8/pkg/configparser"
 	"deifzar/orchestratorm8/pkg/db8"
 	"deifzar/orchestratorm8/pkg/log8"
+	"strconv"
 	"time"
 
 	"github.com/spf13/viper"
@@ -72,10 +73,20 @@ func (o *Orchestrator8) InitOrchestrator() error {
 	}
 	// Declare 'ASMM8' queue and bind it to the 'CPTM8' Exchange
 	queue := o.Config.GetStringSlice("ORCHESTRATORM8.asmm8.Queue")
+	bindingkeys := o.Config.GetStringSlice("ORCHESTRATORM8.asmm8.Routing-keys")
 	qargs := o.Config.GetStringMap("ORCHESTRATORM8.asmm8.Queue-arguments")
-	amqp8 := o.Amqp
+	prefetch_count, err := strconv.Atoi(queue[2])
+	if err != nil {
+		log8.BaseLogger.Debug().Msg(err.Error())
+		return err
+	}
 	log8.BaseLogger.Info().Msg("RabbitMQ declaring queues for the ASMM8 service.")
-	err := amqp8.DeclareQueueAndBind(queue[0], queue[1], queue[2], 0, qargs)
+	err = o.Amqp.DeclareQueue(queue[0], queue[1], prefetch_count, qargs)
+	if err != nil {
+		log8.BaseLogger.Debug().Msg(err.Error())
+		return err
+	}
+	err = o.Amqp.BindQueue(queue[0], queue[1], bindingkeys)
 	if err != nil {
 		log8.BaseLogger.Debug().Msg(err.Error())
 		return err
@@ -83,9 +94,20 @@ func (o *Orchestrator8) InitOrchestrator() error {
 
 	// Declare 'REPORTINGM8' queue and bind it to the 'SCHEDULER' Exchange
 	queue = o.Config.GetStringSlice("ORCHESTRATORM8.reportingm8.Queue")
+	bindingkeys = o.Config.GetStringSlice("ORCHESTRATORM8.reportingm8.Routing-keys")
 	qargs = o.Config.GetStringMap("ORCHESTRATORM8.reportingm8.Queue-arguments")
+	prefetch_count, err = strconv.Atoi(queue[2])
+	if err != nil {
+		log8.BaseLogger.Debug().Msg(err.Error())
+		return err
+	}
 	log8.BaseLogger.Info().Msg("RabbitMQ declaring queues for the REPORTINGM8 service.")
-	err = amqp8.DeclareQueueAndBind(queue[0], queue[1], queue[2], 0, qargs)
+	err = o.Amqp.DeclareQueue(queue[0], queue[1], prefetch_count, qargs)
+	if err != nil {
+		log8.BaseLogger.Debug().Msg(err.Error())
+		return err
+	}
+	err = o.Amqp.BindQueue(queue[0], queue[1], bindingkeys)
 	if err != nil {
 		log8.BaseLogger.Debug().Msg(err.Error())
 		return err

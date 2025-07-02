@@ -14,8 +14,9 @@ ORCHESTRATORM8:
     Queue:
       - "cptm8" # exchange_name
       - "qasmm8" # queue_name
-      - "cptm8.asmm8.#" # binding_key
       - 1 # prefetch count
+    Routing-keys:
+      - "cptm8.asmm8.#" # binding_key
     Queue-arguments:
       "x-max-length": 1 # x-queue-type, x-max-length, x-max-length-bytes, x-overflow, x-message-ttl, x-expires, x-max-age, x-stream-max-segment-size-bytes, x-queue-version, x-consumer-timeout, x-single-active-consumer
       "x-overflow": "reject-publish"
@@ -27,8 +28,9 @@ ORCHESTRATORM8:
     Queue:
       - cptm8
       - qnaabum8
-      - cptm8.naabum8.#
       - 1
+    Routing-keys:
+      - cptm8.naabum8.#
     Queue-arguments:
       "x-max-length": 1
       "x-overflow": "reject-publish"
@@ -40,8 +42,9 @@ ORCHESTRATORM8:
     Queue:
       - cptm8
       - qkatanam8
-      - cptm8.katanam8.#
       - 1
+    Routing-keys:
+      - cptm8.katanam8.#
     Queue-arguments:
       "x-max-length": 1
       "x-overflow": "reject-publish"
@@ -53,8 +56,9 @@ ORCHESTRATORM8:
     Queue:
       - cptm8
       - qnum8
-      - cptm8.qnum8.#
       - 1
+    Routing-keys:
+      - cptm8.qnum8.#
     Queue-arguments:
       "x-max-length": 1
       "x-overflow": "reject-publish"
@@ -66,8 +70,11 @@ ORCHESTRATORM8:
     Queue:
       - scheduler
       - qreportingm8
+      - 1
+    Routing-keys:
       - scheduler.qreportingm8.#
     Queue-arguments:
+      "x-max-length": 1
     Consumer:
       - "qreportingm8"
       - "creportingm8"
