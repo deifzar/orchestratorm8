@@ -159,12 +159,12 @@ func (o *Orchestrator8) StartOrchestrator() {
 					// defer o.Amqp.CloseChannel()
 					queue := o.Config.GetStringSlice("ORCHESTRATORM8.asmm8.Queue")
 					log8.BaseLogger.Info().Msg("RabbitMQ publishing message to queue for the ASMM8 service.")
-					err := o.Amqp.Publish(queue[0], "cptm8.asmm8.get.scan", "")
+					err := o.Amqp.Publish(queue[0], "cptm8.asmm8.get.scan", nil, "orchestratorm8")
 					if err != nil {
 						log8.BaseLogger.Debug().Msg(err.Error())
-						log8.BaseLogger.Error().Msgf("RabbitMQ publishing message to queue for ASMM8 service - fail")
+						log8.BaseLogger.Error().Msgf("RabbitMQ publishing message to queue for the ASMM8 service - fail")
 					} else {
-						log8.BaseLogger.Info().Msg("RabbitMQ publishing message to ASMM8 queue service - success.")
+						log8.BaseLogger.Info().Msg("RabbitMQ publishing message to the ASMM8 queue service - success.")
 					}
 				}
 			}
