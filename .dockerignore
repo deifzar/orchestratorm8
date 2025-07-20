@@ -1,4 +1,5 @@
 bin
+*/docs/*
 */log/*.log
 */log/*.log.gz
 orchestratorm8

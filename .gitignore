@@ -16,4 +16,8 @@ bin/*
 log/*
 !log/.gitkeep
 
+# docs folder
+docs/*
 
+# AI
+CLAUDE.md
