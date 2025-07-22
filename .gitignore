@@ -12,6 +12,9 @@ bin/*
 !bin/.gitkeep
 !bin/dockerfile
 
+# app folder
+app/*
+
 # log folder
 log/*
 !log/.gitkeep

@@ -49,7 +49,7 @@ to quickly create a Cobra application.`,
 			return err
 
 		}
-		log8.BaseLogger.Info().Msg("OrchestratorM8 declared successfully all the exchanRabbitMQ Exchanges and the ASMM8 queue.")
+		log8.BaseLogger.Info().Msg("OrchestratorM8 declared successfully all the RabbitMQ Exchanges and the ASMM8 queue.")
 		log8.BaseLogger.Info().Msg("OrchestratorM8 started ...")
 		o.StartOrchestrator()
 		return nil
