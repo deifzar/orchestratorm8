@@ -1,6 +1,7 @@
 FROM alpine:3.20
 # Security updates and minimal runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata \
+RUN apk update && \
+    apk --no-cache add ca-certificates tzdata \
     && apk --no-cache upgrade \
     && rm -rf /var/cache/apk/* \
     && adduser -D -g '' -s /bin/sh appuser

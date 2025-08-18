@@ -22,10 +22,11 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 FROM alpine:3.20
 
 # Security updates and minimal runtime dependencies
-RUN apk --no-cache add ca-certificates tzdata \
-    && apk --no-cache upgrade \
-    && rm -rf /var/cache/apk/* \
-    && adduser -D -g '' -s /bin/sh appuser
+RUN apk update && \
+    apk --no-cache add ca-certificates tzdata && \
+    apk --no-cache upgrade && \
+    rm -rf /var/cache/apk/* && \
+    adduser -D -g '' -s /bin/sh appuser
 
 COPY --from=builder --chown=appuser:appuser /app/orchestratorm8 /usr/local/bin/
 
