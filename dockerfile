@@ -2,7 +2,7 @@
 FROM golang:1.23-alpine3.20 AS builder
 RUN apk update && \
     apk add build-base ca-certificates tzdata && \
-    && adduser -D -g '' appuser
+    adduser -D -g '' appuser
 WORKDIR /app
 
 # Copy go mod files first for better caching
