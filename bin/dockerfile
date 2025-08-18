@@ -1,5 +1,18 @@
-FROM alpine:3.22.1
-RUN apk add build-base
-COPY orchestratorm8 /usr/local/bin/
-CMD ["orchestratorm8"]
+FROM alpine:3.20
+# Security updates and minimal runtime dependencies
+RUN apk --no-cache add ca-certificates tzdata \
+    && apk --no-cache upgrade \
+    && rm -rf /var/cache/apk/* \
+    && adduser -D -g '' -s /bin/sh appuser
+
+COPY --chown=appuser:appuser orchestratorm8 /usr/local/bin/
+# Security: Switch to non-root user
+USER appuser
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD orchestratorm8 --help || exit 1
+
 WORKDIR /app
+
+CMD ["orchestratorm8","--help"]
