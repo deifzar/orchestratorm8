@@ -37,6 +37,16 @@ to quickly create a Cobra application.`,
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Create log and tmp directories if they don't exist
+		if err := os.MkdirAll("log", 0755); err != nil {
+			log8.BaseLogger.Error().Err(err).Msg("Failed to create log directory")
+			return err
+		}
+		if err := os.MkdirAll("tmp", 0755); err != nil {
+			log8.BaseLogger.Error().Err(err).Msg("Failed to create tmp directory")
+			return err
+		}
+
 		log8.BaseLogger.Info().Msg("Initilising OrchestratorM8 ...")
 		o, err := om8.NewOrchestratorM8()
 		if err != nil {

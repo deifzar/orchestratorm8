@@ -3,6 +3,7 @@ package orchestratorm8
 import (
 	"database/sql"
 	amqpM8 "deifzar/orchestratorm8/pkg/amqpM8"
+	"deifzar/orchestratorm8/pkg/cleanup8"
 	"deifzar/orchestratorm8/pkg/configparser"
 	"deifzar/orchestratorm8/pkg/db8"
 	"deifzar/orchestratorm8/pkg/log8"
@@ -117,6 +118,13 @@ func (o *Orchestrator8) InitOrchestrator() error {
 }
 
 func (o *Orchestrator8) StartOrchestrator() {
+
+	// Clean up old files in tmp directory (older than 24 hours)
+	cleanup := cleanup8.NewCleanup8()
+	if err := cleanup.CleanupDirectory("tmp", 24*time.Hour); err != nil {
+		log8.BaseLogger.Error().Err(err).Msg("Failed to cleanup tmp directory")
+		// Don't return error here as cleanup failure shouldn't prevent startup
+	}
 
 	DB := o.Db
 	domain8 := db8.NewDb8Domain8(DB)
