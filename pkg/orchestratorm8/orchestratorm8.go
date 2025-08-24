@@ -1,13 +1,17 @@
 package orchestratorm8
 
 import (
+	"context"
 	"database/sql"
 	amqpM8 "deifzar/orchestratorm8/pkg/amqpM8"
 	"deifzar/orchestratorm8/pkg/cleanup8"
 	"deifzar/orchestratorm8/pkg/configparser"
 	"deifzar/orchestratorm8/pkg/db8"
 	"deifzar/orchestratorm8/pkg/log8"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/spf13/viper"
@@ -105,6 +109,18 @@ func (o *Orchestrator8) InitOrchestrator() error {
 
 func (o *Orchestrator8) StartOrchestrator() {
 
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Handle shutdown signals
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan // Wait for CTRL+C or SIGTERM
+		log8.BaseLogger.Info().Msg("Shutting down gracefully...")
+		cancel() // This unblocks <-ctx.Done()
+	}()
+
 	// Clean up old files in tmp directory (older than 24 hours)
 	cleanup := cleanup8.NewCleanup8()
 	if err := cleanup.CleanupDirectory("tmp", 24*time.Hour); err != nil {
@@ -168,6 +184,8 @@ func (o *Orchestrator8) StartOrchestrator() {
 	go checkDBEmpty(true)
 	go checkRMQPublish()
 
-	var c chan bool
-	<-c
+	<-ctx.Done()
+
+	// Cleanup code here (close DB connections, etc.)
+	log8.BaseLogger.Info().Msg("Orchestrator stopped")
 }
