@@ -17,7 +17,6 @@ import (
 
 type Orchestrator8 struct {
 	Config *viper.Viper
-	Amqp   amqpM8.AmqpM8Interface
 	Db     *sql.DB
 }
 
@@ -28,10 +27,23 @@ func NewOrchestratorM8() (Orchestrator8Interface, error) {
 		return &Orchestrator8{}, err
 	}
 
-	locationRMQ := v.GetString("RabbitMQ.location")
-	portRMQ := v.GetInt("RabbitMQ.port")
-	usernameRMQ := v.GetString("RabbitMQ.username")
-	passwordRMQ := v.GetString("RabbitMQ.password")
+	// Try to initialize the default pool (will do nothing if already exists)
+	manager := amqpM8.GetGlobalPoolManager()
+	poolExists := false
+	for _, poolName := range manager.ListPools() {
+		if poolName == "default" {
+			poolExists = true
+			break
+		}
+	}
+
+	if !poolExists {
+		err = amqpM8.InitializeConnectionPool()
+		if err != nil {
+			log8.BaseLogger.Debug().Msg(err.Error())
+			return &Orchestrator8{}, err
+		}
+	}
 
 	locationDB := v.GetString("Database.location")
 	portDB := v.GetInt("Database.port")
@@ -39,15 +51,6 @@ func NewOrchestratorM8() (Orchestrator8Interface, error) {
 	databaseDB := v.GetString("Database.database")
 	usernameDB := v.GetString("Database.username")
 	passwordDB := v.GetString("Database.password")
-
-	am8, err := amqpM8.NewAmqpM8(locationRMQ, portRMQ, usernameRMQ, passwordRMQ)
-	// defer am8.CloseConnection()
-	// defer am8.CloseChannel()
-	if err != nil {
-		log8.BaseLogger.Debug().Msg(err.Error())
-		log8.BaseLogger.Error().Msg("Error connecting into RabbitMQ.")
-		return &Orchestrator8{}, err
-	}
 
 	var db db8.Db8
 	db.InitDatabase8(locationDB, portDB, schemaDB, databaseDB, usernameDB, passwordDB)
@@ -58,21 +61,13 @@ func NewOrchestratorM8() (Orchestrator8Interface, error) {
 		return &Orchestrator8{}, err
 	}
 
-	o := &Orchestrator8{Config: v, Amqp: am8, Db: conn}
+	o := &Orchestrator8{Config: v, Db: conn}
 	return o, nil
 }
 
 func (o *Orchestrator8) InitOrchestrator() error {
 	exchanges := o.Config.GetStringMapString("ORCHESTRATORM8.Exchanges")
 
-	for exname, extype := range exchanges {
-		err := o.Amqp.DeclareExchange(exname, extype)
-		if err != nil {
-			log8.BaseLogger.Debug().Msg(err.Error())
-			return err
-		}
-	}
-	// Declare 'ASMM8' queue and bind it to the 'CPTM8' Exchange
 	queue := o.Config.GetStringSlice("ORCHESTRATORM8.asmm8.Queue")
 	bindingkeys := o.Config.GetStringSlice("ORCHESTRATORM8.asmm8.Routing-keys")
 	qargs := o.Config.GetStringMap("ORCHESTRATORM8.asmm8.Queue-arguments")
@@ -81,40 +76,31 @@ func (o *Orchestrator8) InitOrchestrator() error {
 		log8.BaseLogger.Debug().Msg(err.Error())
 		return err
 	}
-	log8.BaseLogger.Info().Msg("RabbitMQ declaring queues for the ASMM8 service.")
-	err = o.Amqp.DeclareQueue(queue[0], queue[1], prefetch_count, qargs)
-	if err != nil {
-		log8.BaseLogger.Debug().Msg(err.Error())
-		return err
-	}
-	err = o.Amqp.BindQueue(queue[0], queue[1], bindingkeys)
-	if err != nil {
-		log8.BaseLogger.Debug().Msg(err.Error())
-		return err
-	}
 
-	// Declare 'REPORTINGM8' queue and bind it to the 'SCHEDULER' Exchange
-	queue = o.Config.GetStringSlice("ORCHESTRATORM8.reportingm8.Queue")
-	bindingkeys = o.Config.GetStringSlice("ORCHESTRATORM8.reportingm8.Routing-keys")
-	qargs = o.Config.GetStringMap("ORCHESTRATORM8.reportingm8.Queue-arguments")
-	prefetch_count, err = strconv.Atoi(queue[2])
-	if err != nil {
-		log8.BaseLogger.Debug().Msg(err.Error())
-		return err
-	}
-	log8.BaseLogger.Info().Msg("RabbitMQ declaring queues for the REPORTINGM8 service.")
-	err = o.Amqp.DeclareQueue(queue[0], queue[1], prefetch_count, qargs)
-	if err != nil {
-		log8.BaseLogger.Debug().Msg(err.Error())
-		return err
-	}
-	err = o.Amqp.BindQueue(queue[0], queue[1], bindingkeys)
-	if err != nil {
-		log8.BaseLogger.Debug().Msg(err.Error())
-		return err
-	}
+	err = amqpM8.WithPooledConnection(func(am8 amqpM8.PooledAmqpInterface) error {
+		for exname, extype := range exchanges {
+			err := am8.DeclareExchange(exname, extype)
+			if err != nil {
+				log8.BaseLogger.Debug().Msg(err.Error())
+				return err
+			}
+		}
+		// Declare 'ASMM8' queue and bind it to the 'CPTM8' Exchange
+		log8.BaseLogger.Info().Msg("RabbitMQ declaring queues for the ASMM8 service.")
+		err = am8.DeclareQueue(queue[0], queue[1], prefetch_count, qargs)
+		if err != nil {
+			log8.BaseLogger.Debug().Msg(err.Error())
+			return err
+		}
+		err = am8.BindQueue(queue[0], queue[1], bindingkeys)
+		if err != nil {
+			log8.BaseLogger.Debug().Msg(err.Error())
+			return err
+		}
+		return nil
+	})
 
-	return nil
+	return err
 }
 
 func (o *Orchestrator8) StartOrchestrator() {
@@ -163,11 +149,11 @@ func (o *Orchestrator8) StartOrchestrator() {
 			if !empty {
 				if publish {
 					log8.BaseLogger.Info().Msg("There are domains in the DB and publishing messages is allowed.")
-					// defer o.Amqp.CloseConnection()
-					// defer o.Amqp.CloseChannel()
 					queue := o.Config.GetStringSlice("ORCHESTRATORM8.asmm8.Queue")
 					log8.BaseLogger.Info().Msg("RabbitMQ publishing message to exchange for the ASMM8 service.")
-					err := o.Amqp.Publish(queue[0], "cptm8.asmm8.get.scan", nil, "orchestratorm8")
+					err := amqpM8.WithPooledConnection(func(am8 amqpM8.PooledAmqpInterface) error {
+						return am8.Publish(queue[0], "cptm8.asmm8.get.scan", nil, "orchestratorm8")
+					})
 					if err != nil {
 						log8.BaseLogger.Debug().Msg(err.Error())
 						log8.BaseLogger.Error().Msgf("RabbitMQ publishing message to exchange for the ASMM8 service - fail")
