@@ -91,3 +91,11 @@ RabbitMQ: # RabbitMQ connection details
   port: 5672
   username: "user"
   password: "pass"
+  pool:
+    max_connections:
+    min_connections:
+    pool.max_idle_time:
+    max_lifetime:
+    health_check_period:
+    connection_timeout:
+    retry_delay:

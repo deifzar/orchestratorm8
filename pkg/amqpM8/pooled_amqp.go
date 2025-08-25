@@ -389,9 +389,7 @@ func (w *PooledAmqp) Publish(exchangeName string, routingKey string, payload any
 
 // Consume starts consuming messages from a queue calling internally ConsumeWithContext
 func (w *PooledAmqp) Consume(consumerName, queueName string, autoACK bool) error {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // This will be managed differently in pooled connections
-	return w.ConsumeWithContext(ctx, consumerName, queueName, autoACK)
+	return w.ConsumeWithContext(context.Background(), consumerName, queueName, autoACK)
 }
 
 // ConsumeWithContext starts consuming messages with a context
@@ -424,7 +422,7 @@ func (w *PooledAmqp) ConsumeWithContext(ctx context.Context, consumerName, queue
 
 		for {
 			select {
-			case <-ctx.Done():
+			case <-ctx.Done(): // context.Background() never gets cancelled
 				log8.BaseLogger.Info().Msgf("Consumer `%s` shutting down gracefully", consumerName)
 				if err := w.CancelConsumer(consumerName); err != nil {
 					log8.BaseLogger.Error().Msgf("Error cancelling consumer `%s`: %v", consumerName, err)
