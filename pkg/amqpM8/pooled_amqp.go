@@ -598,7 +598,7 @@ func (w *PooledAmqp) CloseConnection() {
 // The function simply calls Return from connection_pool, which sets the property 'inUse' to 'false'
 func (w *PooledAmqp) ReturnToPool() {
 	w.pool.Return(w)
-	log8.BaseLogger.Debug().Msg("Explicitly returned pooled connection to pool")
+	// log8.BaseLogger.Debug().Msg("Explicitly returned pooled connection to pool")
 }
 
 // CloseChannel does NOTHING for pooled connections (channel is managed by pool).

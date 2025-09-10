@@ -92,10 +92,11 @@ RabbitMQ: # RabbitMQ connection details
   username: "user"
   password: "pass"
   pool:
-    max_connections:
-    min_connections:
-    pool.max_idle_time:
-    max_lifetime:
-    health_check_period:
-    connection_timeout:
-    retry_delay:
+    max_connections: # default: 10
+    min_connections: # default: 2
+    pool.max_idle_time: # default: "1h" Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+    max_lifetime: # default: "2h" Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+    health_check_period: # default: "30m" Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+    connection_timeout: # default: "30s" Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
+    retry_attempts: # default: 3
+    retry_delay: # default: "2s" Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
