@@ -294,7 +294,7 @@ func (w *PooledAmqp) GetNumberOfActiveConsumersByQueue(queueName string, queueAr
 		false,     // delete when unused
 		false,     // exclusive
 		false,     // no-wait
-		queueArgs, // arguments)
+		queueArgs, // arguments
 	)
 	if err != nil {
 		log8.BaseLogger.Debug().Msg(err.Error())
