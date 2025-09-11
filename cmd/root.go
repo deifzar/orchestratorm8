@@ -17,7 +17,6 @@ package cmd
 
 import (
 	"deifzar/orchestratorm8/pkg/log8"
-	om8 "deifzar/orchestratorm8/pkg/orchestratorm8"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -36,34 +35,6 @@ to quickly create a Cobra application.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// Create log and tmp directories if they don't exist
-		if err := os.MkdirAll("log", 0755); err != nil {
-			log8.BaseLogger.Error().Err(err).Msg("Failed to create log directory")
-			return err
-		}
-		if err := os.MkdirAll("tmp", 0755); err != nil {
-			log8.BaseLogger.Error().Err(err).Msg("Failed to create tmp directory")
-			return err
-		}
-
-		log8.BaseLogger.Info().Msg("Initilising OrchestratorM8 ...")
-		o, err := om8.NewOrchestratorM8()
-		if err != nil {
-			log8.BaseLogger.Fatal().Msg("Error in Cobra CLI execute. Something wrong with the DB or RabbitMQ server connections.")
-			return err
-		}
-		err = o.InitOrchestrator()
-		if err != nil {
-			log8.BaseLogger.Fatal().Msg("Error in Cobra CLI execute. Something wrong with declaring the RabbitMQ Exchanges.")
-			return err
-
-		}
-		log8.BaseLogger.Info().Msg("OrchestratorM8 declared successfully all the RabbitMQ Exchanges and the ASMM8 queue.")
-		log8.BaseLogger.Info().Msg("OrchestratorM8 started ...")
-		o.StartOrchestrator()
-		return nil
-	},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

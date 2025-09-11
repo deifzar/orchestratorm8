@@ -1,35 +1,34 @@
-package orchestratorm8
+package controller8
 
 import (
 	"context"
 	"database/sql"
 	amqpM8 "deifzar/orchestratorm8/pkg/amqpM8"
 	"deifzar/orchestratorm8/pkg/cleanup8"
-	"deifzar/orchestratorm8/pkg/configparser"
 	"deifzar/orchestratorm8/pkg/db8"
 	"deifzar/orchestratorm8/pkg/log8"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
+	amqp "github.com/rabbitmq/amqp091-go"
+
 	"github.com/spf13/viper"
 
 	_ "github.com/lib/pq"
 )
 
-type Orchestrator8 struct {
+type Controller8OrchestratorM8 struct {
 	Config *viper.Viper
 	Db     *sql.DB
 }
 
-func NewOrchestratorM8() (Orchestrator8Interface, error) {
-
-	v, err := configparser.InitConfigParser()
-	if err != nil {
-		return &Orchestrator8{}, err
-	}
+func NewController8OrchestratorM8(db *sql.DB, cnfg *viper.Viper) (Controller8OrchestratorM8Interface, error) {
 
 	// Try to initialize the default pool (will do nothing if already exists)
 	manager := amqpM8.GetGlobalPoolManager()
@@ -42,34 +41,18 @@ func NewOrchestratorM8() (Orchestrator8Interface, error) {
 	}
 
 	if !poolExists {
-		err = amqpM8.InitializeConnectionPool()
+		err := amqpM8.InitializeConnectionPool()
 		if err != nil {
 			log8.BaseLogger.Debug().Msg(err.Error())
-			return &Orchestrator8{}, err
+			return &Controller8OrchestratorM8{}, err
 		}
 	}
 
-	locationDB := v.GetString("Database.location")
-	portDB := v.GetInt("Database.port")
-	schemaDB := v.GetString("Database.schema")
-	databaseDB := v.GetString("Database.database")
-	usernameDB := v.GetString("Database.username")
-	passwordDB := v.GetString("Database.password")
-
-	var db db8.Db8
-	db.InitDatabase8(locationDB, portDB, schemaDB, databaseDB, usernameDB, passwordDB)
-	conn, err := db.OpenConnection()
-	if err != nil {
-		log8.BaseLogger.Debug().Msg(err.Error())
-		log8.BaseLogger.Error().Msg("Error connecting into DB.")
-		return &Orchestrator8{}, err
-	}
-
-	o := &Orchestrator8{Config: v, Db: conn}
+	o := &Controller8OrchestratorM8{Db: db, Config: cnfg}
 	return o, nil
 }
 
-func (o *Orchestrator8) InitOrchestrator() error {
+func (o *Controller8OrchestratorM8) InitOrchestrator() error {
 	exchanges := o.Config.GetStringMapString("ORCHESTRATORM8.Exchanges")
 
 	queue := o.Config.GetStringSlice("ORCHESTRATORM8.asmm8.Queue")
@@ -107,7 +90,7 @@ func (o *Orchestrator8) InitOrchestrator() error {
 	return err
 }
 
-func (o *Orchestrator8) StartOrchestrator() {
+func (o *Controller8OrchestratorM8) StartOrchestrator() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -188,4 +171,94 @@ func (o *Orchestrator8) StartOrchestrator() {
 
 	// Cleanup code here (close DB connections, etc.)
 	log8.BaseLogger.Info().Msg("Orchestrator stopped")
+}
+
+func (o *Controller8OrchestratorM8) ExistQueue(queueName string, queueArgs amqp.Table) bool {
+	var exists bool
+
+	err := amqpM8.WithPooledConnection(func(am8 amqpM8.PooledAmqpInterface) error {
+		exists = am8.ExistQueue(queueName, queueArgs)
+		return nil
+	})
+
+	if err != nil {
+		log8.BaseLogger.Debug().Msg(err.Error())
+		log8.BaseLogger.Error().Msgf("Error checking if queue `%s` exists", queueName)
+		return false
+	}
+
+	return exists
+}
+
+func (o *Controller8OrchestratorM8) ExistConsumersForQueue(queueName string) bool {
+	var exists bool
+
+	err := amqpM8.WithPooledConnection(func(am8 amqpM8.PooledAmqpInterface) error {
+		c := am8.GetConsumersForQueue(queueName)
+		exists = len(c) > 0
+		return nil
+	})
+
+	if err != nil {
+		log8.BaseLogger.Debug().Msg(err.Error())
+		log8.BaseLogger.Error().Msgf("Error checking if consumers exist for queue `%s`", queueName)
+		return false
+	}
+
+	return exists
+}
+
+func (m *Controller8OrchestratorM8) HealthCheck(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{
+		"status":    "healthy",
+		"timestamp": time.Now().Format(time.RFC3339),
+		"service":   "orchestratorm8",
+	})
+}
+
+func (m *Controller8OrchestratorM8) ReadinessCheck(c *gin.Context) {
+	dbHealthy := true
+	rbHealthy := true
+	if err := m.Db.Ping(); err != nil {
+		log8.BaseLogger.Error().Err(err).Msg("Database ping failed during readiness check")
+		dbHealthy = false
+	}
+	dbStatus := "unhealthy"
+	if dbHealthy {
+		dbStatus = "healthy"
+	}
+
+	queue_consumer := m.Config.GetStringSlice("ORCHESTRATORM8.asmm8.Queue")
+	qargs_consumer := m.Config.GetStringMap("ORCHESTRATORM8.asmm8.Queue-arguments")
+
+	if !m.ExistQueue(queue_consumer[1], qargs_consumer) || !m.ExistConsumersForQueue(queue_consumer[1]) {
+		rbHealthy = false
+	}
+
+	rbStatus := "unhealthy"
+	if rbHealthy {
+		rbStatus = "healthy"
+	}
+
+	if dbHealthy && rbHealthy {
+		c.JSON(http.StatusOK, gin.H{
+			"status":    "ready",
+			"timestamp": time.Now().Format(time.RFC3339),
+			"service":   "orchestratorm8",
+			"checks": gin.H{
+				"database": dbStatus,
+				"rabbitmq": rbStatus,
+			},
+		})
+	} else {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"status":    "not ready",
+			"timestamp": time.Now().Format(time.RFC3339),
+			"service":   "orchestratorm8",
+			"checks": gin.H{
+				"database": dbStatus,
+				"rabbitmq": rbStatus,
+			},
+		})
+	}
 }
