@@ -105,7 +105,7 @@ func (o *Controller8OrchestratorM8) StartOrchestrator(ctx context.Context) {
 	checkDBEmpty := func(first bool) {
 		ticker := time.NewTicker(15 * time.Minute)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ctx.Done():
@@ -117,38 +117,18 @@ func (o *Controller8OrchestratorM8) StartOrchestrator(ctx context.Context) {
 					log8.BaseLogger.Debug().Msg(err.Error())
 					log8.BaseLogger.Error().Msgf("Starting orchestrator has failed. Something wrong fetching domains from the DB.")
 				}
-				
-				select {
-				case emptyChan <- (len(domains) < 1):
-				case <-ctx.Done():
-					log8.BaseLogger.Info().Msg("checkDBEmpty goroutine shutting down")
-					return
-				}
-				
+
+				emptyChan <- (len(domains) < 1)
+
 				if first && (len(domains) > 0) {
-					select {
-					case publishChan <- true:
-					case <-ctx.Done():
-						log8.BaseLogger.Info().Msg("checkDBEmpty goroutine shutting down")
-						return
-					}
+					publishChan <- true
 					first = false
 				} else {
 					if len(domains) < 1 {
-						select {
-						case publishChan <- false:
-						case <-ctx.Done():
-							log8.BaseLogger.Info().Msg("checkDBEmpty goroutine shutting down")
-							return
-						}
+						publishChan <- false
 						first = true
 					} else {
-						select {
-						case publishChan <- false:
-						case <-ctx.Done():
-							log8.BaseLogger.Info().Msg("checkDBEmpty goroutine shutting down")
-							return
-						}
+						publishChan <- false
 						first = false
 					}
 				}
@@ -158,20 +138,15 @@ func (o *Controller8OrchestratorM8) StartOrchestrator(ctx context.Context) {
 	checkRMQPublish := func() {
 		for {
 			var empty, publish bool
-			
+
 			select {
 			case <-ctx.Done():
 				log8.BaseLogger.Info().Msg("checkRMQPublish goroutine shutting down")
 				return
 			case empty = <-emptyChan:
-				select {
-				case <-ctx.Done():
-					log8.BaseLogger.Info().Msg("checkRMQPublish goroutine shutting down")
-					return
-				case publish = <-publishChan:
-				}
+				publish = <-publishChan
 			}
-			
+
 			// if there is at least one domain and you can publish
 			if !empty {
 				if publish {
