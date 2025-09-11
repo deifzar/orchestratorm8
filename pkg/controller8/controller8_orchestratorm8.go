@@ -8,10 +8,7 @@ import (
 	"deifzar/orchestratorm8/pkg/db8"
 	"deifzar/orchestratorm8/pkg/log8"
 	"net/http"
-	"os"
-	"os/signal"
 	"strconv"
-	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -90,19 +87,7 @@ func (o *Controller8OrchestratorM8) InitOrchestrator() error {
 	return err
 }
 
-func (o *Controller8OrchestratorM8) StartOrchestrator() {
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Handle shutdown signals
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-sigChan // Wait for CTRL+C or SIGTERM
-		log8.BaseLogger.Info().Msg("Shutting down gracefully...")
-		cancel() // This unblocks <-ctx.Done()
-	}()
+func (o *Controller8OrchestratorM8) StartOrchestrator(ctx context.Context) {
 
 	// Clean up old files in tmp directory (older than 24 hours)
 	cleanup := cleanup8.NewCleanup8()
@@ -118,32 +103,75 @@ func (o *Controller8OrchestratorM8) StartOrchestrator() {
 	var publishChan = make(chan bool)
 
 	checkDBEmpty := func(first bool) {
+		ticker := time.NewTicker(15 * time.Minute)
+		defer ticker.Stop()
+		
 		for {
-			domains, err := domain8.GetAllEnabled()
-			if err != nil {
-				log8.BaseLogger.Debug().Msg(err.Error())
-				log8.BaseLogger.Error().Msgf("Starting orchestrator has failed. Something wrong fetching domains from the DB.")
-			}
-			emptyChan <- (len(domains) < 1)
-			if first && (len(domains) > 0) {
-				publishChan <- true
-				first = false
-			} else {
-				if len(domains) < 1 {
-					publishChan <- false
-					first = true
-				} else {
-					publishChan <- false
+			select {
+			case <-ctx.Done():
+				log8.BaseLogger.Info().Msg("checkDBEmpty goroutine shutting down")
+				return
+			case <-ticker.C:
+				domains, err := domain8.GetAllEnabled()
+				if err != nil {
+					log8.BaseLogger.Debug().Msg(err.Error())
+					log8.BaseLogger.Error().Msgf("Starting orchestrator has failed. Something wrong fetching domains from the DB.")
+				}
+				
+				select {
+				case emptyChan <- (len(domains) < 1):
+				case <-ctx.Done():
+					log8.BaseLogger.Info().Msg("checkDBEmpty goroutine shutting down")
+					return
+				}
+				
+				if first && (len(domains) > 0) {
+					select {
+					case publishChan <- true:
+					case <-ctx.Done():
+						log8.BaseLogger.Info().Msg("checkDBEmpty goroutine shutting down")
+						return
+					}
 					first = false
+				} else {
+					if len(domains) < 1 {
+						select {
+						case publishChan <- false:
+						case <-ctx.Done():
+							log8.BaseLogger.Info().Msg("checkDBEmpty goroutine shutting down")
+							return
+						}
+						first = true
+					} else {
+						select {
+						case publishChan <- false:
+						case <-ctx.Done():
+							log8.BaseLogger.Info().Msg("checkDBEmpty goroutine shutting down")
+							return
+						}
+						first = false
+					}
 				}
 			}
-			time.Sleep(15 * time.Minute)
 		}
 	}
 	checkRMQPublish := func() {
 		for {
-			empty := <-emptyChan
-			publish := <-publishChan
+			var empty, publish bool
+			
+			select {
+			case <-ctx.Done():
+				log8.BaseLogger.Info().Msg("checkRMQPublish goroutine shutting down")
+				return
+			case empty = <-emptyChan:
+				select {
+				case <-ctx.Done():
+					log8.BaseLogger.Info().Msg("checkRMQPublish goroutine shutting down")
+					return
+				case publish = <-publishChan:
+				}
+			}
+			
 			// if there is at least one domain and you can publish
 			if !empty {
 				if publish {

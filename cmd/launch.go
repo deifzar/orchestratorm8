@@ -4,15 +4,18 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"context"
 	"deifzar/orchestratorm8/pkg/amqpM8"
 	"deifzar/orchestratorm8/pkg/api8"
 	"deifzar/orchestratorm8/pkg/log8"
 	"deifzar/orchestratorm8/pkg/utils"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -46,14 +49,16 @@ var launchCmd = &cobra.Command{
 			}
 			address := ipFlag + ":" + fmt.Sprint(portFlag)
 
-			// Set up graceful shutdown (connection pool will be initialized by api8.Init())
+			// Create context for coordinated shutdown
+			ctx, cancel := context.WithCancel(context.Background())
+
+			// Set up graceful shutdown signal handler
 			sigChan := make(chan os.Signal, 1)
 			signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 			go func() {
 				<-sigChan
-				log8.BaseLogger.Info().Msg("Shutdown signal received, cleaning up...")
-				amqpM8.CleanupConnectionPool()
-				os.Exit(0)
+				log8.BaseLogger.Info().Msg("Shutdown signal received, initiating graceful shutdown...")
+				cancel() // Cancel context to signal all components to shutdown
 			}()
 
 			var a api8.Api8
@@ -70,10 +75,43 @@ var launchCmd = &cobra.Command{
 				log8.BaseLogger.Fatal().Msg("Error in `Launch` command line when initialising the API endpoint routes.")
 				return err
 			}
-			a.Run(address)
-			log8.BaseLogger.Info().Msg("API service successfully running in " + address)
 
-			contrOrch.StartOrchestrator()
+			// Create HTTP server with graceful shutdown capability
+			srv := &http.Server{
+				Addr:    address,
+				Handler: a.Router,
+			}
+
+			// Start HTTP server in goroutine
+			go func() {
+				log8.BaseLogger.Info().Msg("Starting API service on " + address)
+				if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					log8.BaseLogger.Fatal().Err(err).Msg("Failed to start HTTP server")
+				}
+			}()
+
+			log8.BaseLogger.Info().Msg("API service successfully running on " + address)
+
+			// Start orchestrator with context
+			go contrOrch.StartOrchestrator(ctx)
+
+			// Wait for shutdown signal
+			<-ctx.Done()
+
+			// Graceful shutdown with timeout
+			log8.BaseLogger.Info().Msg("Shutting down HTTP server...")
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer shutdownCancel()
+
+			if err := srv.Shutdown(shutdownCtx); err != nil {
+				log8.BaseLogger.Error().Err(err).Msg("HTTP server forced to shutdown")
+			} else {
+				log8.BaseLogger.Info().Msg("HTTP server shutdown complete")
+			}
+
+			// Cleanup resources
+			amqpM8.CleanupConnectionPool()
+			log8.BaseLogger.Info().Msg("Application shutdown complete")
 
 			return nil
 		}
