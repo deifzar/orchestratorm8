@@ -26,4 +26,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 # Use custom entrypoint for secret loading 
 ENTRYPOINT ["docker-entrypoint.sh"]
 
-CMD ["orchestratorm8"]
+CMD ["orchestratorm8","launch"]
