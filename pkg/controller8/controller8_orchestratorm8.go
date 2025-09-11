@@ -193,12 +193,12 @@ func (o *Controller8OrchestratorM8) ExistQueue(queueName string, queueArgs amqp.
 	return exists
 }
 
-func (o *Controller8OrchestratorM8) ExistConsumersForQueue(queueName string) bool {
+func (o *Controller8OrchestratorM8) ExistConsumersForQueue(queueName string, queueArgs amqp.Table) bool {
 	var exists bool
 
 	err := amqpM8.WithPooledConnection(func(am8 amqpM8.PooledAmqpInterface) error {
-		c := am8.GetConsumersForQueue(queueName)
-		exists = len(c) > 0
+		c := am8.GetNumberOfActiveConsumersByQueue(queueName, queueArgs)
+		exists = c > 0
 		return nil
 	})
 
@@ -234,7 +234,7 @@ func (m *Controller8OrchestratorM8) ReadinessCheck(c *gin.Context) {
 	queue_consumer := m.Config.GetStringSlice("ORCHESTRATORM8.asmm8.Queue")
 	qargs_consumer := m.Config.GetStringMap("ORCHESTRATORM8.asmm8.Queue-arguments")
 
-	if !m.ExistQueue(queue_consumer[1], qargs_consumer) || !m.ExistConsumersForQueue(queue_consumer[1]) {
+	if !m.ExistQueue(queue_consumer[1], qargs_consumer) || !m.ExistConsumersForQueue(queue_consumer[1], qargs_consumer) {
 		rbHealthy = false
 	}
 

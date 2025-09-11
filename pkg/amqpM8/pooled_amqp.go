@@ -49,6 +49,7 @@ type PooledAmqpInterface interface {
 	Consume(consumerName, queueName string, autoACK bool) error
 	ConsumeWithContext(ctx context.Context, consumerName, queueName string, autoACK bool) error
 	ConsumeWithReconnect(ctx context.Context, consumerName, queueName string, autoACK bool) error
+	GetNumberOfActiveConsumersByQueue(queueName string, queueArgs amqp.Table) int
 	ExistQueue(queueName string, queueArgs amqp.Table) bool
 	DeleteQueue(queueName string) error
 	CancelConsumer(consumerName string) error
@@ -281,6 +282,27 @@ func (w *PooledAmqp) ExistQueue(queueName string, queueArgs amqp.Table) bool {
 
 	log8.BaseLogger.Info().Msgf("Queue `%s` exists", queueName)
 	return true
+}
+
+// Return the number of active consumers if the queue exists. It will return an error if the queue does not exist.
+func (w *PooledAmqp) GetNumberOfActiveConsumersByQueue(queueName string, queueArgs amqp.Table) int {
+	log8.BaseLogger.Info().Msgf("Checking how many active consumers the queue `%s` has", queueName)
+
+	queue, err := w.pooledConn.channel.QueueDeclarePassive(
+		queueName, // name
+		false,     // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		queueArgs, // arguments)
+	)
+	if err != nil {
+		log8.BaseLogger.Debug().Msg(err.Error())
+		log8.BaseLogger.Info().Msgf("Queue `%s` does not exist", queueName)
+		return 0
+	}
+
+	return queue.Consumers
 }
 
 // DeleteQueue deletes a queue
