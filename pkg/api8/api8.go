@@ -66,21 +66,19 @@ func (a *Api8) Init() error {
 	return nil
 }
 
-func (a *Api8) Routes() error {
+func (a *Api8) Routes() (controller8.Controller8OrchestratorM8Interface, error) {
 	r := gin.Default()
 	contrOrch, err := controller8.NewController8OrchestratorM8(a.DB, a.Cnfg)
 	if err != nil {
 		log8.BaseLogger.Info().Msg("Error initializing the default RabbitMQ pool.")
-		return err
+		return &controller8.Controller8OrchestratorM8{}, err
 	}
 
 	err = contrOrch.InitOrchestrator()
 	if err != nil {
 		log8.BaseLogger.Info().Msg("Error declaring exchange and queues in RabbitMQ.")
-		return err
+		return &controller8.Controller8OrchestratorM8{}, err
 	}
-
-	contrOrch.StartOrchestrator()
 
 	r.MaxMultipartMemory = 8 << 20 //8 MiB
 
@@ -89,7 +87,7 @@ func (a *Api8) Routes() error {
 	r.GET("/ready", contrOrch.ReadinessCheck)
 
 	a.Router = r
-	return nil
+	return contrOrch, nil
 }
 
 func (a *Api8) Run(addr string) {

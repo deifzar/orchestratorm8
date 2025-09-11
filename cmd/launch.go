@@ -64,7 +64,7 @@ var launchCmd = &cobra.Command{
 				log8.BaseLogger.Fatal().Msg("Error in `Launch` command line when connecting to DB.")
 				return err
 			}
-			err = a.Routes()
+			contrOrch, err := a.Routes()
 			if err != nil {
 				log8.BaseLogger.Debug().Msg(err.Error())
 				log8.BaseLogger.Fatal().Msg("Error in `Launch` command line when initialising the API endpoint routes.")
@@ -72,6 +72,9 @@ var launchCmd = &cobra.Command{
 			}
 			a.Run(address)
 			log8.BaseLogger.Info().Msg("API service successfully running in " + address)
+
+			contrOrch.StartOrchestrator()
+
 			return nil
 		}
 	},
