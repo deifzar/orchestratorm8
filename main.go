@@ -18,9 +18,11 @@ package main
 import (
 	"deifzar/orchestratorm8/cmd"
 	"deifzar/orchestratorm8/pkg/log8"
+	"syscall"
 )
 
 func main() {
+	syscall.Umask(0027) // Files: 640, Dirs: 750
 	log8.GetLogger()
 	cmd.Execute()
 }
