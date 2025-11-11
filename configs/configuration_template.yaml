@@ -97,5 +97,5 @@ RabbitMQ:
     max_lifetime: # default: "2h" Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
     health_check_period: # default: "30m" Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
     connection_timeout: # default: "30s" Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
-    retry_attempts: # default: 3
+    retry_attempts: # default: 10
     retry_delay: # default: "2s" Valid time units are "ns", "us" (or "µs"), "ms", "s", "m", "h".
