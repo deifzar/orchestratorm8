@@ -22,8 +22,11 @@ app/*
 log/*
 !log/.gitkeep
 
-# docs folder
-docs/*
+# temp folder
+tmp/*
+# exception to the rule
+!tmp/.gitkeep
 
 # AI
+.claude/*
 CLAUDE.md
